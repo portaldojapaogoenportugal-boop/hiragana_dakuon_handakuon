@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hiragana Dakuten Quiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f5f5f9;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 480px;
+      width: 100%;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 4px;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .kana-display {
+      font-size: 4rem;
+      text-align: center;
+      margin: 12px 0 8px;
+    }
+    .question-info {
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      color: #555;
+    }
+    .score-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      margin: 6px 0;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      background: #e0e0ff;
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.1s ease;
+    }
+    .btn-primary {
+      background: #4f46e5;
+      color: #fff;
+    }
+    .btn-small {
+      font-size: 0.85rem;
+      padding: 6px 10px;
+      width: auto;
+      display: inline-block;
+    }
+    .feedback {
+      margin-top: 10px;
+      font-size: 0.95rem;
+      min-height: 1.4em;
+    }
+    .feedback.correct { color: #0c7a3a; }
+    .feedback.wrong { color: #b91c1c; }
+
+    .badge-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #312e81;
+    }
+    .mistake-list {
+      font-size: 0.85rem;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .mistake-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+    }
+  </style>
+</head>
+
+<body>
+<div class="app">
+
+  <div class="card">
+    <h1>Hiragana Dakuten Quiz</h1>
+    <div class="subtitle">
+      10 questions per round · 3 choices · voiced & semi-voiced sounds
+    </div>
+
+    <div class="question-info">
+      <div>Question: <span id="questionNumber">0</span> / 10</div>
+      <div>Round: <span id="roundCount">0</span></div>
+    </div>
+
+    <div class="score-info">
+      <div>Score: <span id="score">0</span></div>
+      <div>Streak: <span id="streak">0</span> (Max: <span id="maxStreak">0</span>)</div>
+    </div>
+
+    <div class="kana-display" id="kanaDisplay">ー</div>
+
+    <div style="text-align:center;">
+      <button class="btn btn-small" id="playAudioBtn">🔊 Play audio</button>
+    </div>
+
+    <button class="btn" id="choice1"></button>
+    <button class="btn" id="choice2"></button>
+    <button class="btn" id="choice3"></button>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div id="roundEnd" style="display:none; margin-top:16px;">
+      <strong>Round finished!</strong><br>
+      Correct: <span id="roundCorrect">0</span> / 10<br>
+      <button class="btn btn-primary btn-small" id="nextRoundBtn">Next round</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div><strong>Badges</strong></div>
+    <div class="badge-list" id="badgeList"></div>
+  </div>
+
+  <div class="card">
+    <div><strong>Mistakes</strong></div>
+    <div class="mistake-list" id="mistakeList"></div>
+  </div>
+
+</div>
+
+<script>
+/* ==========================
+   Kana list (requested set)
+   ========================== */
+const KANA_LIST = [
+  { id: "ga", char: "が", romaji: "ga" },
+  { id: "gi", char: "ぎ", romaji: "gi" },
+  { id: "gu", char: "ぐ", romaji: "gu" },
+  { id: "ge", char: "げ", romaji: "ge" },
+  { id: "go", char: "ご", romaji: "go" },
+  { id: "za", char: "ざ", romaji: "za" },
+  { id: "ji1", char: "じ", romaji: "ji" },
+  { id: "zu1", char: "ず", romaji: "zu" },
+  { id: "ze", char: "ぜ", romaji: "ze" },
+  { id: "zo", char: "ぞ", romaji: "zo" },
+  { id: "da", char: "だ", romaji: "da" },
+  { id: "ji2", char: "ぢ", romaji: "ji" },
+  { id: "zu2", char: "づ", romaji: "zu" },
+  { id: "de", char: "で", romaji: "de" },
+  { id: "do", char: "ど", romaji: "do" },
+  { id: "ba", char: "ば", romaji: "ba" },
+  { id: "bi", char: "び", romaji: "bi" },
+  { id: "bu", char: "ぶ", romaji: "bu" },
+  { id: "be", char: "べ", romaji: "be" },
+  { id: "bo", char: "ぼ", romaji: "bo" },
+  { id: "pa", char: "ぱ", romaji: "pa" },
+  { id: "pi", char: "ぴ", romaji: "pi" },
+  { id: "pu", char: "ぷ", romaji: "pu" },
+  { id: "pe", char: "ぺ", romaji: "pe" },
+  { id: "po", char: "ぽ", romaji: "po" }
+];
+
+const TOTAL_PER_ROUND = 10;
+const REVIEW_PER_ROUND = 3;
+const STORAGE_KEY = "hiragana_dakuten_quiz_state_v2";
+
+/* ==========================
+   State management
+   ========================== */
+let state = {
+  learningQueue: [],
+  index: 0,
+  reviewPool: {},
+  stats: {
+    score: 0,
+    currentStreak: 0,
+    maxStreak: 0,
+    totalSeen: 0,
+    totalCorrect: 0,
+    roundsPlayed: 0,
+    badges: []
+  },
+  currentRound: {
+    questionList: [],
+    position: 0,
+    correctThisRound: 0
+  }
+};
+
+let currentQuestion = null;
+let roundFinished = false;
+
+/* ==========================
+   Utility functions
+   ========================== */
+function shuffle(array) {
+  const arr = array.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function getKanaById(id) {
+  return KANA_LIST.find(k => k.id === id);
+}
+function getRandomFromArray(arr, n) {
+  const copy = arr.slice();
+  const result = [];
+  for (let i = 0; i < n; i++) {
+    const idx = Math.floor(Math.random() * copy.length);
+    result.push(copy[idx]);
+    copy.splice(idx, 1);
+  }
+  return result;
+}
+
+/* ==========================
+   ★ 修正版 generateChoices
+   ========================== */
+function generateChoices(correctKana) {
+  const correctRomaji = correctKana.romaji;
+
+  // 同じローマ字の選択肢を完全排除
+  const allOthers = KANA_LIST.filter(
+    k => k.id !== correctKana.id && k.romaji !== correctRomaji
+  );
+
+  const vowel = correctRomaji.slice(-1);
+  const consonant = correctRomaji.slice(0, -1);
+
+  let candidates = allOthers.filter(k => k.romaji.endsWith(vowel));
+
+  if (candidates.length < 2 && consonant) {
+    const byConsonant = allOthers.filter(k => k.romaji.startsWith(consonant));
+    const set = new Set(candidates.map(k => k.id));
+    byConsonant.forEach(k => {
+      if (!set.has(k.id)) candidates.push(k);
+    });
+  }
+
+  if (candidates.length < 2) {
+    const existing = new Set(candidates.map(k => k.id));
+    const fallback = allOthers.filter(k => !existing.has(k.id));
+    candidates = candidates.concat(fallback);
+  }
+
+  const distractors = getRandomFromArray(candidates, 2);
+
+  return shuffle([
+    { text: correctRomaji, correct: true },
+    { text: distractors[0].romaji, correct: false },
+    { text: distractors[1].romaji, correct: false }
+  ]);
+}
+
+/* ==========================
+   Round logic
+   ========================== */
+function initLearningQueue() {
+  state.learningQueue = shuffle(KANA_LIST.map(k => k.id));
+  state.index = 0;
+}
+
+function buildRoundQuestionList() {
+  const q = [];
+
+  const reviewIds = Object.keys(state.reviewPool);
+  const numReview = Math.min(REVIEW_PER_ROUND, reviewIds.length);
+  q.push(...getRandomFromArray(reviewIds, numReview));
+
+  while (q.length < TOTAL_PER_ROUND) {
+    if (state.index >= state.learningQueue.length) {
+      state.learningQueue = shuffle(KANA_LIST.map(k => k.id));
+      state.index = 0;
+    }
+    const id = state.learningQueue[state.index++];
+    if (!q.includes(id)) q.push(id);
+  }
+
+  state.currentRound.questionList = shuffle(q);
+  state.currentRound.position = 0;
+  state.currentRound.correctThisRound = 0;
+}
+
+function startNewRound() {
+  buildRoundQuestionList();
+  state.stats.roundsPlayed++;
+  state.stats.currentStreak = 0;
+  saveState();
+  updateUI();
+  showNextQuestion();
+}
+
+function showNextQuestion() {
+  if (state.currentRound.position >= TOTAL_PER_ROUND) return finishRound();
+
+  const id = state.currentRound.questionList[state.currentRound.position];
+  currentQuestion = getKanaById(id);
+
+  document.getElementById("kanaDisplay").textContent = currentQuestion.char;
+
+  const options = generateChoices(currentQuestion);
+  ["choice1","choice2","choice3"].forEach((id, i) => {
+    const btn = document.getElementById(id);
+    btn.textContent = options[i].text;
+    btn.dataset.correct = options[i].correct ? "1" : "0";
+    btn.disabled = false;
+    btn.style.background = "#e0e0ff";
+    btn.style.color = "#000";
+  });
+
+  document.getElementById("feedback").textContent = "";
+  document.getElementById("roundEnd").style.display = "none";
+
+  document.getElementById("questionNumber").textContent =
+    state.currentRound.position + 1;
+
+  updateUI();
+}
+
+function finishRound() {
+  roundFinished = true;
+  document.getElementById("roundCorrect").textContent =
+    state.currentRound.correctThisRound;
+  document.getElementById("roundEnd").style.display = "block";
+
+  checkBadges();
+  renderBadges();
+}
+
+function handleChoiceClick(e) {
+  if (!currentQuestion) return;
+  const btn = e.currentTarget;
+  const correct = btn.dataset.correct === "1";
+
+  ["choice1","choice2","choice3"].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+
+  state.stats.totalSeen++;
+
+  if (correct) {
+    state.stats.totalCorrect++;
+    state.currentRound.correctThisRound++;
+    state.stats.currentStreak++;
+    const points = 10 + Math.max(0, state.stats.currentStreak - 1);
+    state.stats.score += points;
+
+    if (state.stats.currentStreak > state.stats.maxStreak)
+      state.stats.maxStreak = state.stats.currentStreak;
+
+    btn.style.background = "#22c55e";
+    btn.style.color = "#fff";
+    document.getElementById("feedback").textContent =
+      `Correct! → ${currentQuestion.romaji}`;
+
+    if (state.reviewPool[currentQuestion.id]) {
+      state.reviewPool[currentQuestion.id].seen++;
+      const r = state.reviewPool[currentQuestion.id];
+      if (r.seen >= 3 && r.wrongCount <= r.seen / 2) delete state.reviewPool[currentQuestion.id];
+    }
+
+  } else {
+    state.stats.currentStreak = 0;
+    btn.style.background = "#ef4444";
+    btn.style.color = "#fff";
+    document.getElementById("feedback").textContent =
+      `Wrong… ${currentQuestion.char} = ${currentQuestion.romaji}`;
+
+    if (!state.reviewPool[currentQuestion.id]) {
+      state.reviewPool[currentQuestion.id] = { wrongCount: 1, seen: 0 };
+    } else {
+      state.reviewPool[currentQuestion.id].wrongCount++;
+    }
+  }
+
+  saveState();
+  renderMistakes();
+
+  setTimeout(() => {
+    state.currentRound.position++;
+    showNextQuestion();
+  }, 700);
+}
+
+/* ==========================
+   Badges
+   ========================== */
+function checkBadges() {
+  const s = state.stats;
+  if (s.totalSeen >= 10) addBadge("first10");
+  if (s.totalSeen >= 50) addBadge("fifty");
+  if (s.maxStreak >= 5) addBadge("combo5");
+  if (s.maxStreak >= 10) addBadge("combo10");
+  if (s.totalCorrect >= 100) addBadge("hundredCorrect");
+  if (state.currentRound.correctThisRound === TOTAL_PER_ROUND)
+    addBadge("perfect");
+}
+function addBadge(id) {
+  if (!state.stats.badges.includes(id))
+    state.stats.badges.push(id);
+}
+function renderBadges() {
+  const b = document.getElementById("badgeList");
+  b.innerHTML = "";
+  if (state.stats.badges.length === 0) {
+    b.textContent = "No badges yet!";
+    return;
+  }
+  const names = {
+    first10: "10 questions",
+    fifty: "50 questions",
+    combo5: "Combo 5",
+    combo10: "Combo 10",
+    hundredCorrect: "100 correct",
+    perfect: "Perfect round"
+  };
+  state.stats.badges.forEach(id => {
+    const d = document.createElement("div");
+    d.className = "badge";
+    d.textContent = names[id] || id;
+    b.appendChild(d);
+  });
+}
+
+/* ==========================
+   Mistake list
+   ========================== */
+function renderMistakes() {
+  const m = document.getElementById("mistakeList");
+  m.innerHTML = "";
+
+  const list = Object.entries(state.reviewPool)
+    .sort((a,b)=>b[1].wrongCount - a[1].wrongCount);
+
+  if (list.length === 0) {
+    m.textContent = "No mistakes!";
+    return;
+  }
+
+  list.forEach(([id, info]) => {
+    const k = getKanaById(id);
+    const row = document.createElement("div");
+    row.className = "mistake-item";
+    row.innerHTML = `<span>${k.char} → ${k.romaji}</span><span>${info.wrongCount}</span>`;
+    m.appendChild(row);
+  });
+}
+
+/* ==========================
+   Audio
+   ========================== */
+function playKanaAudio() {
+  if (!currentQuestion) return;
+  const u = new SpeechSynthesisUtterance(currentQuestion.char);
+  u.lang = "ja-JP";
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+/* ==========================
+   Save & load
+   ========================== */
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function loadState() {
+  const s = localStorage.getItem(STORAGE_KEY);
+  if (s) {
+    state = Object.assign(state, JSON.parse(s));
+  } else {
+    initLearningQueue();
+  }
+}
+
+/* ==========================
+   UI
+   ========================== */
+function updateUI() {
+  document.getElementById("score").textContent = state.stats.score;
+  document.getElementById("streak").textContent = state.stats.currentStreak;
+  document.getElementById("maxStreak").textContent = state.stats.maxStreak;
+  document.getElementById("roundCount").textContent = state.stats.roundsPlayed;
+}
+
+/* ==========================
+   Init
+   ========================== */
+function init() {
+  loadState();
+  renderMistakes();
+  renderBadges();
+  updateUI();
+  startNewRound();
+
+  document.getElementById("choice1").onclick = handleChoiceClick;
+  document.getElementById("choice2").onclick = handleChoiceClick;
+  document.getElementById("choice3").onclick = handleChoiceClick;
+
+  document.getElementById("playAudioBtn").onclick = playKanaAudio;
+  document.getElementById("nextRoundBtn").onclick = startNewRound;
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
