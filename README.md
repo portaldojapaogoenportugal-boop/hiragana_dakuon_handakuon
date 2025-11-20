@@ -1,0 +1,2 @@
+# hiragana_dakuon_handakuon
+hiragana_dakuon_handakuon
